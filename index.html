@@ -141,7 +141,7 @@
   // =============================
   const V_START_KMH = 5;         // speed threshold
   const D_MIN_METERS = 3;        // distance from ARM threshold
-  const MAX_ACC_METERS = 12;     // ignore worse GPS accuracy
+  const MAX_ACC_METERS = 15;     // ignore worse GPS accuracy
   const MAX_IMPLIED_KMH = 250;   // anti teleport/glitch
 
   const TARGETS = [
@@ -640,4 +640,5 @@ MAX: ${it.maxSpeedKmh?.toFixed(1) ?? "—"} km/j @ ${it.maxSpeedAtM?.toFixed(1) 
 })();
 </script>
 </body>
+
 </html>
