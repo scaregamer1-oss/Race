@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RaceBox Web (Trigger C) iPhone</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin:0; background:#0b0f14; color:#e8eef6; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .topbar { display:flex; gap:10px; align-items:center; justify-content:space-between; }
+    .tabs { display:flex; gap:10px; }
+    .tab { padding:10px 12px; border-radius: 999px; background:#0f1620; border:1px solid #24344c; cursor:pointer; user-select:none; }
+    .tab.active { background:#2b8cff; color:#001425; border-color:#2b8cff; font-weight:900; }
+    .card { background:#121a24; border:1px solid #213044; border-radius: 14px; padding: 14px; margin: 12px 0; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    button {
+      border:0; border-radius: 12px; padding: 12px 14px; font-weight: 900;
+      background:#2b8cff; color:#001425; cursor:pointer;
+    }
+    button.secondary { background:#1f2c3e; color:#e8eef6; border:1px solid #2b3c54; }
+    button.danger { background:#ff4d4d; color:#220000; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .kpi { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+    .kpi .box { background:#0f1620; border:1px solid #1f2b3b; border-radius: 12px; padding: 12px; }
+    .label { opacity:.75; font-size: 12px; }
+    .value { font-size: 22px; font-weight: 1000; margin-top: 4px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #223247; text-align:left; }
+    th { font-size: 12px; opacity:.85; }
+    .small { font-size: 12px; opacity:.85; line-height: 1.45; }
+    .pill { display:inline-block; padding: 4px 10px; border-radius:999px; background:#0f1620; border:1px solid #24344c; font-size:12px; }
+    .warn { color:#ffb020; font-weight:900; }
+    .bad { color:#ff4d4d; font-weight:1000; }
+    .ok { color:#6bff95; font-weight:1000; }
+    .hide { display:none !important; }
+    .historyItem { background:#0f1620; border:1px solid #223247; border-radius: 12px; padding: 12px; margin: 10px 0; }
+    .historyTop { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+    .mono { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="tabs">
+        <div id="tabRun" class="tab active">Run</div>
+        <div id="tabHistory" class="tab">History</div>
+      </div>
+      <span id="status" class="pill">idle</span>
+    </div>
+
+    <!-- RUN -->
+    <div id="viewRun">
+      <div class="card">
+        <h1>RaceBox Web — Trigger C (ARM → auto start)</h1>
+        <div class="small">
+          <b>Trigger C:</b> timer mulai otomatis saat <b>speed ≥ 5 km/j</b> dan <b>jarak dari titik ARM ≥ 3 m</b>.
+          <br/>Tips iPhone: wajib <b>HTTPS</b>, pakai Safari, pastikan izin Location aktif.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button id="btnArm">ARM</button>
+          <button id="btnStop" class="danger" disabled>STOP</button>
+          <button id="btnReset" class="secondary">RESET</button>
+        </div>
+
+        <div class="kpi" style="margin-top:12px;">
+          <div class="box">
+            <div class="label">Kecepatan (km/j)</div>
+            <div id="speed" class="value mono">—</div>
+          </div>
+          <div class="box">
+            <div class="label">Jarak run (m)</div>
+            <div id="distance" class="value mono">0.0</div>
+          </div>
+          <div class="box">
+            <div class="label">Akurasi GPS (m)</div>
+            <div id="accuracy" class="value mono">—</div>
+          </div>
+        </div>
+
+        <div class="small" style="margin-top:10px;">
+          State: <span id="stateText" class="pill">idle</span>
+          <span id="hint" class="small" style="margin-left:8px;"></span>
+          <div class="small mono" style="margin-top:8px;">
+            d(ARM→now): <span id="dArm">—</span> m • speed: <span id="vNow">—</span> km/j
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h1>Hasil (split)</h1>
+        <table>
+          <thead>
+            <tr><th>Marker</th><th>Jarak</th><th>Waktu</th><th>MAX speed (km/j)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>60 ft</td><td>18.288 m</td><td id="t60">—</td><td id="n60">—</td></tr>
+            <tr><td>201 m</td><td>201 m</td><td id="t201">—</td><td id="n201">—</td></tr>
+            <tr><td>402 m (1/4 mile)</td><td>402 m</td><td id="t402">—</td><td id="n402">—</td></tr>
+            <tr><td>500 m</td><td>500 m</td><td id="t500">—</td><td id="n500">—</td></tr>
+            <tr>
+              <td><b>MAX SPEED</b></td>
+              <td id="maxAt"><b>—</b></td>
+              <td>—</td>
+              <td id="maxSpeed"><b>—</b></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="small" style="margin-top:10px;">
+          Kolom terakhir di split = <b>MAX speed sampai marker itu</b>.
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="viewHistory" class="hide">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h1 style="margin:0;">History</h1>
+          <div class="row">
+            <button id="btnExport" class="secondary">Export CSV</button>
+            <button id="btnClearAll" class="danger">Hapus Semua</button>
+          </div>
+        </div>
+        <div class="small">History tersimpan lokal di browser (localStorage).</div>
+      </div>
+
+      <div id="historyList"></div>
+      <div id="historyEmpty" class="card small">Belum ada run tersimpan.</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // =============================
+  // SETTINGS (Trigger C)
+  // =============================
+  const V_START_KMH = 5;         // speed threshold
+  const D_MIN_METERS = 3;        // distance from ARM threshold
+  const MAX_ACC_METERS = 12;     // ignore worse GPS accuracy
+  const MAX_IMPLIED_KMH = 250;   // anti teleport/glitch
+
+  const TARGETS = [
+    { key: "60",  meters: 18.288 },
+    { key: "201", meters: 201 },
+    { key: "402", meters: 402 },
+    { key: "500", meters: 500 },
+  ];
+
+  const HISTORY_KEY = "racebox_triggerC_history_v1";
+
+  // =============================
+  // UI
+  // =============================
+  const el = (id) => document.getElementById(id);
+
+  const tabRun = el("tabRun");
+  const tabHistory = el("tabHistory");
+  const viewRun = el("viewRun");
+  const viewHistory = el("viewHistory");
+
+  const btnArm = el("btnArm");
+  const btnStop = el("btnStop");
+  const btnReset = el("btnReset");
+
+  const btnExport = el("btnExport");
+  const btnClearAll = el("btnClearAll");
+
+  const statusEl = el("status");
+  const stateTextEl = el("stateText");
+  const hintEl = el("hint");
+
+  const speedEl = el("speed");
+  const distEl = el("distance");
+  const accEl = el("accuracy");
+
+  const dArmEl = el("dArm");
+  const vNowEl = el("vNow");
+
+  const maxSpeedEl = el("maxSpeed");
+  const maxAtEl = el("maxAt");
+
+  const historyList = el("historyList");
+  const historyEmpty = el("historyEmpty");
+
+  function setStatus(s) { statusEl.textContent = s; }
+  function setState(s) { stateTextEl.textContent = s; }
+  function setHint(text, kind="") {
+    hintEl.textContent = text || "";
+    hintEl.className = "small " + (kind || "");
+  }
+
+  function fmtTime(ms) { return ms == null ? "—" : (ms/1000).toFixed(3) + " s"; }
+  function fmtNum(n, d=1) { return (n == null || !Number.isFinite(n)) ? "—" : n.toFixed(d); }
+
+  function setCell(key, timeMs, maxSpeedKmh) {
+    el("t"+key).textContent = timeMs == null ? "—" : fmtTime(timeMs);
+    el("n"+key).textContent = maxSpeedKmh == null ? "—" : fmtNum(maxSpeedKmh, 1);
+  }
+  function resetTable() {
+    for (const t of TARGETS) setCell(t.key, null, null);
+    maxSpeedEl.textContent = "—";
+    maxAtEl.textContent = "—";
+  }
+
+  // =============================
+  // Math
+  // =============================
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = (d) => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat/2)**2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  function interpolateCross(prevPerf, currPerf, prevDist, currDist, targetDist) {
+    const span = currDist - prevDist;
+    if (span <= 1e-6) return currPerf;
+    const r = Math.max(0, Math.min(1, (targetDist - prevDist)/span));
+    return prevPerf + (currPerf - prevPerf) * r;
+  }
+
+  // =============================
+  // History
+  // =============================
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+    catch { return []; }
+  }
+  function saveHistory(arr) { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); }
+  function addHistory(obj) {
+    const arr = loadHistory();
+    arr.unshift(obj);
+    if (arr.length > 100) arr.length = 100;
+    saveHistory(arr);
+    renderHistory();
+  }
+  function delHistory(id) {
+    saveHistory(loadHistory().filter(x => x.id !== id));
+    renderHistory();
+  }
+  function clearHistory() { saveHistory([]); renderHistory(); }
+
+  function toCSV(rows) {
+    const header = [
+      "id","timestamp_iso",
+      "t60_s","t201_s","t402_s","t500_s",
+      "max_speed_kmh","max_speed_at_m",
+      "trigger_v_kmh","trigger_d_m","maxAcc_m","maxImplied_kmh"
+    ];
+    const esc = (v) => {
+      const s = String(v ?? "");
+      if (s.includes(",") || s.includes('"') || s.includes("\n")) return '"' + s.replaceAll('"','""') + '"';
+      return s;
+    };
+    const out = [header.join(",")];
+    for (const r of rows) {
+      out.push([
+        r.id, r.tsISO,
+        r.times?.t60_s ?? "", r.times?.t201_s ?? "", r.times?.t402_s ?? "", r.times?.t500_s ?? "",
+        r.maxSpeedKmh ?? "", r.maxSpeedAtM ?? "",
+        V_START_KMH, D_MIN_METERS, MAX_ACC_METERS, MAX_IMPLIED_KMH
+      ].map(esc).join(","));
+    }
+    return out.join("\n");
+  }
+
+  function downloadText(filename, text) {
+    const blob = new Blob([text], { type:"text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function renderHistory() {
+    const arr = loadHistory();
+    historyList.innerHTML = "";
+    historyEmpty.classList.toggle("hide", arr.length !== 0);
+
+    for (const it of arr) {
+      const div = document.createElement("div");
+      div.className = "historyItem";
+      const dateStr = new Date(it.tsISO).toLocaleString();
+
+      const t60  = it.times?.t60_s  != null ? it.times.t60_s.toFixed(3) : "—";
+      const t201 = it.times?.t201_s != null ? it.times.t201_s.toFixed(3) : "—";
+      const t402 = it.times?.t402_s != null ? it.times.t402_s.toFixed(3) : "—";
+      const t500 = it.times?.t500_s != null ? it.times.t500_s.toFixed(3) : "—";
+
+      const ms   = it.maxSpeedKmh != null ? it.maxSpeedKmh.toFixed(1) : "—";
+      const at   = it.maxSpeedAtM != null ? it.maxSpeedAtM.toFixed(1) : "—";
+
+      div.innerHTML = `
+        <div class="historyTop">
+          <div>
+            <div style="font-weight:1000;">Run • <span class="mono">${dateStr}</span></div>
+            <div class="small mono">60ft: ${t60}s • 201m: ${t201}s • 402m: ${t402}s • 500m: ${t500}s</div>
+            <div class="small mono"><b>MAX:</b> ${ms} km/j @ ${at} m</div>
+            <div class="small mono">Trigger: v≥${V_START_KMH} & d≥${D_MIN_METERS}m</div>
+          </div>
+          <div class="row">
+            <button class="secondary" data-act="copy" data-id="${it.id}">Copy</button>
+            <button class="danger" data-act="del" data-id="${it.id}">Hapus</button>
+          </div>
+        </div>
+      `;
+      historyList.appendChild(div);
+    }
+
+    historyList.querySelectorAll("button[data-act]").forEach(b => {
+      b.addEventListener("click", async () => {
+        const act = b.getAttribute("data-act");
+        const id = b.getAttribute("data-id");
+        const it = loadHistory().find(x => x.id === id);
+        if (!it) return;
+
+        if (act === "del") {
+          delHistory(id);
+        } else {
+          const text = `Run ${it.tsISO}
+60ft: ${it.times?.t60_s?.toFixed(3) ?? "—"} s
+201m: ${it.times?.t201_s?.toFixed(3) ?? "—"} s
+402m: ${it.times?.t402_s?.toFixed(3) ?? "—"} s
+500m: ${it.times?.t500_s?.toFixed(3) ?? "—"} s
+MAX: ${it.maxSpeedKmh?.toFixed(1) ?? "—"} km/j @ ${it.maxSpeedAtM?.toFixed(1) ?? "—"} m`;
+          try {
+            await navigator.clipboard.writeText(text);
+            b.textContent = "Copied!";
+            setTimeout(() => b.textContent = "Copy", 900);
+          } catch {
+            downloadText("run.txt", text);
+          }
+        }
+      });
+    });
+  }
+
+  // =============================
+  // State machine
+  // =============================
+  const State = {
+    IDLE: "idle",
+    ARMED: "armed",
+    RUNNING: "running",
+    FINISHED: "finished",
+    STOPPED: "stopped",
+  };
+  let state = State.IDLE;
+
+  let watchId = null;
+
+  // Trigger C references
+  let armFix = null;          // {lat, lon, perfNow}
+  let prevFix = null;         // previous accepted fix
+
+  // Run tracking
+  let started = false;
+  let startPerf = null;       // perf time at start t0
+  let totalDist = 0;
+  let hit = new Map();
+
+  // Speed (km/h)
+  let lastSpeedKmh = 0;
+
+  // Max speed
+  let maxSpeedKmh = 0;
+  let maxSpeedAtM = 0;
+
+  function updateButtons() {
+    btnArm.disabled = !(state === State.IDLE || state === State.STOPPED || state === State.FINISHED);
+    btnStop.disabled = (state === State.IDLE);
+  }
+
+  function setStateAll(next) {
+    state = next;
+    setState(next);
+    setStatus(next);
+    updateButtons();
+  }
+
+  function stopWatch() {
+    if (watchId != null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+  }
+
+  function resetAll() {
+    stopWatch();
+
+    state = State.IDLE;
+    armFix = null;
+    prevFix = null;
+
+    started = false;
+    startPerf = null;
+    totalDist = 0;
+    hit = new Map();
+
+    lastSpeedKmh = 0;
+    maxSpeedKmh = 0;
+    maxSpeedAtM = 0;
+
+    speedEl.textContent = "—";
+    distEl.textContent = "0.0";
+    accEl.textContent = "—";
+    dArmEl.textContent = "—";
+    vNowEl.textContent = "—";
+
+    resetTable();
+    setStateAll(State.IDLE);
+    setHint("");
+  }
+
+  function acceptFix(accuracy) {
+    return accuracy == null || accuracy <= MAX_ACC_METERS;
+  }
+
+  function startWatch() {
+    if (!navigator.geolocation) {
+      setHint("Browser tidak mendukung geolocation.", "bad");
+      return false;
+    }
+    if (watchId != null) return true;
+
+    watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 10000
+    });
+    return true;
+  }
+
+  function onError(err) {
+    setHint("GPS error: " + err.message, "bad");
+    setStatus("GPS error");
+  }
+
+  function onPosition(pos) {
+    const { latitude, longitude, accuracy, speed } = pos.coords;
+
+    accEl.textContent = accuracy != null ? accuracy.toFixed(1) : "—";
+
+    // speed m/s -> km/h
+    let spKmh = (speed != null && !Number.isNaN(speed)) ? (speed * 3.6) : lastSpeedKmh;
+    if (!Number.isFinite(spKmh)) spKmh = 0;
+    lastSpeedKmh = spKmh;
+
+    speedEl.textContent = spKmh.toFixed(1);
+    vNowEl.textContent = spKmh.toFixed(1);
+
+    if (!acceptFix(accuracy)) {
+      if (state === State.ARMED) setHint(`ARMED… (fix jelek, acc ${accuracy?.toFixed?.(1)}m)`, "warn");
+      return;
+    }
+
+    const perfNow = performance.now();
+    const fix = { lat: latitude, lon: longitude, perfNow };
+
+    // anti teleport/glitch using implied speed from prevFix
+    if (prevFix) {
+      const dTmp = haversine(prevFix.lat, prevFix.lon, fix.lat, fix.lon);
+      const dt = (fix.perfNow - prevFix.perfNow) / 1000;
+      const implied = dt > 0 ? (dTmp / dt) * 3.6 : 0;
+      if (implied > MAX_IMPLIED_KMH) return;
+    }
+
+    // If ARMED: set armFix on first good fix if not set
+    if (state === State.ARMED && !armFix) {
+      armFix = fix;
+      prevFix = fix;
+      setHint("ARMED: titik start terkunci. Gas untuk mulai (Trigger C).", "ok");
+      dArmEl.textContent = "0.0";
+      return;
+    }
+
+    // Show distance from ARM while armed
+    if (state === State.ARMED && armFix) {
+      const dFromArm = haversine(armFix.lat, armFix.lon, fix.lat, fix.lon);
+      dArmEl.textContent = dFromArm.toFixed(1);
+
+      const condV = spKmh >= V_START_KMH;
+      const condD = dFromArm >= D_MIN_METERS;
+
+      if (!started) {
+        setHint(`Menunggu Trigger C… v≥${V_START_KMH}? ${condV ? "OK" : "NO"} • d≥${D_MIN_METERS}m? ${condD ? "OK" : "NO"}`, "warn");
+      }
+
+      // Trigger C fires
+      if (!started && condV && condD) {
+        started = true;
+        startPerf = perfNow;
+
+        // reset run odometer anchored at this fix
+        totalDist = 0;
+        hit = new Map();
+        resetTable();
+        distEl.textContent = "0.0";
+
+        maxSpeedKmh = 0;
+        maxSpeedAtM = 0;
+
+        // switch to running
+        setStateAll(State.RUNNING);
+        setHint(`START! (v ${spKmh.toFixed(1)} km/j • d ${dFromArm.toFixed(1)} m)`, "ok");
+
+        // set prevFix to this fix as first running fix
+        prevFix = fix;
+        return;
+      }
+
+      prevFix = fix;
+      return;
+    }
+
+    // RUNNING: accumulate distance & splits
+    if (state === State.RUNNING) {
+      const d = prevFix ? haversine(prevFix.lat, prevFix.lon, fix.lat, fix.lon) : 0;
+      const prevTotal = totalDist;
+      const currTotal = totalDist + d;
+      totalDist = currTotal;
+      distEl.textContent = totalDist.toFixed(1);
+
+      // max speed
+      if (spKmh > maxSpeedKmh) {
+        maxSpeedKmh = spKmh;
+        maxSpeedAtM = totalDist;
+        maxSpeedEl.textContent = fmtNum(maxSpeedKmh, 1);
+        maxAtEl.textContent = fmtNum(maxSpeedAtM, 1) + " m";
+      }
+
+      for (const t of TARGETS) {
+        if (hit.has(t.key)) continue;
+        if (totalDist >= t.meters) {
+          const crossPerf = interpolateCross(prevFix.perfNow, fix.perfNow, prevTotal, totalDist, t.meters);
+          const timeMs = crossPerf - startPerf;
+          hit.set(t.key, { timeMs });
+          setCell(t.key, timeMs, maxSpeedKmh);
+        }
+      }
+
+      if (hit.has("500")) {
+        finishRun(true);
+        stopWatch();
+      }
+
+      prevFix = fix;
+      return;
+    }
+
+    prevFix = fix;
+  }
+
+  function finishRun(isFinished) {
+    setStateAll(isFinished ? State.FINISHED : State.STOPPED);
+    setHint(isFinished ? "Selesai. Tersimpan ke History." : "Dihentikan.", isFinished ? "ok" : "warn");
+
+    const now = new Date();
+    const times = {
+      t60_s:  hit.get("60")?.timeMs  != null ? hit.get("60").timeMs/1000 : null,
+      t201_s: hit.get("201")?.timeMs != null ? hit.get("201").timeMs/1000 : null,
+      t402_s: hit.get("402")?.timeMs != null ? hit.get("402").timeMs/1000 : null,
+      t500_s: hit.get("500")?.timeMs != null ? hit.get("500").timeMs/1000 : null,
+    };
+
+    const any = Object.values(times).some(v => v != null);
+    if (!any) return;
+
+    addHistory({
+      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2),
+      tsISO: now.toISOString(),
+      times,
+      maxSpeedKmh,
+      maxSpeedAtM
+    });
+  }
+
+  // =============================
+  // Actions
+  // =============================
+  function arm() {
+    resetAll();
+    if (!startWatch()) return;
+    setStateAll(State.ARMED);
+    btnStop.disabled = false;
+    setHint("ARMED… menunggu GPS fix bagus untuk lock titik ARM.", "warn");
+  }
+
+  function stop() {
+    if (state === State.IDLE) return;
+    stopWatch();
+    if (state === State.RUNNING) {
+      finishRun(false);
+    } else {
+      setStateAll(State.STOPPED);
+      setHint("Stop.", "warn");
+    }
+  }
+
+  // Tabs
+  function showRun() {
+    tabRun.classList.add("active");
+    tabHistory.classList.remove("active");
+    viewRun.classList.remove("hide");
+    viewHistory.classList.add("hide");
+  }
+  function showHistory() {
+    tabHistory.classList.add("active");
+    tabRun.classList.remove("active");
+    viewHistory.classList.remove("hide");
+    viewRun.classList.add("hide");
+    renderHistory();
+  }
+
+  // Wire up
+  btnArm.addEventListener("click", arm);
+  btnStop.addEventListener("click", stop);
+  btnReset.addEventListener("click", resetAll);
+
+  tabRun.addEventListener("click", showRun);
+  tabHistory.addEventListener("click", showHistory);
+
+  btnClearAll.addEventListener("click", () => clearHistory());
+  btnExport.addEventListener("click", () => downloadText("racebox_history.csv", toCSV(loadHistory())));
+
+  // init
+  resetAll();
+  renderHistory();
+})();
+</script>
+</body>
+</html>
