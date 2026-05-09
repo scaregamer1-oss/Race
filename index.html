@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RaceBox - Trigger C</title>
+  <title>RaceBox - Trigger 5km/h</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
     body { margin:0; background:#0b0f14; color:#e8eef6; }
@@ -29,14 +29,11 @@
     table { width:100%; border-collapse: collapse; }
     th, td { padding: 10px; border-bottom: 1px solid #223247; text-align:left; }
     th { font-size: 12px; opacity:.85; }
-    .small { font-size: 12px; opacity:.85; line-height: 1.45; }
     .pill { display:inline-block; padding: 4px 10px; border-radius:999px; background:#0f1620; border:1px solid #24344c; font-size:12px; }
+    .ok { color:#6bff95; font-weight:1000; }
     .warn { color:#ffb020; font-weight:900; }
     .bad { color:#ff4d4d; font-weight:1000; }
-    .ok { color:#6bff95; font-weight:1000; }
     .hide { display:none !important; }
-    .historyItem { background:#0f1620; border:1px solid #223247; border-radius: 12px; padding: 12px; margin: 10px 0; }
-    .historyTop { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
     .mono { font-variant-numeric: tabular-nums; }
   </style>
 </head>
@@ -50,7 +47,6 @@
       <span id="status" class="pill">idle</span>
     </div>
 
-    <!-- VIEW RUN -->
     <div id="viewRun">
       <div class="card">
         <div class="row">
@@ -60,281 +56,168 @@
         </div>
 
         <div class="kpi" style="margin-top:12px;">
-          <div class="box">
-            <div class="label">Kecepatan (km/j)</div>
-            <div id="speed" class="value mono">—</div>
-          </div>
-          <div class="box">
-            <div class="label">Jarak run (m)</div>
-            <div id="distance" class="value mono">0.0</div>
-          </div>
-          <div class="box">
-            <div class="label">Akurasi GPS (m)</div>
-            <div id="accuracy" class="value mono">—</div>
-          </div>
+          <div class="box"><div class="label">Km/j</div><div id="speed" class="value mono">—</div></div>
+          <div class="box"><div class="label">Jarak (m)</div><div id="distance" class="value mono">0.0</div></div>
+          <div class="box"><div class="label">GPS Acc</div><div id="accuracy" class="value mono">—</div></div>
         </div>
 
         <div class="small" style="margin-top:10px;">
-          State: <span id="stateText" class="pill">idle</span>
+          Status: <span id="stateText" class="pill">idle</span>
           <span id="hint" class="small" style="margin-left:8px;"></span>
         </div>
       </div>
 
       <div class="card">
-        <h1>Hasil (split)</h1>
+        <h1>Hasil Split</h1>
         <table>
-          <thead>
-            <tr><th>Marker</th><th>Jarak</th><th>Waktu</th><th>MAX speed (km/j)</th></tr>
-          </thead>
+          <thead><tr><th>Marker</th><th>Waktu</th><th>Speed</th></tr></thead>
           <tbody>
-            <tr><td>60 ft</td><td>18.288 m</td><td id="t60">—</td><td id="n60">—</td></tr>
-            <tr><td>201 m</td><td>201 m</td><td id="t201">—</td><td id="n201">—</td></tr>
-            <tr><td>402 m </td><td>402 m</td><td id="t402">—</td><td id="n402">—</td></tr>
-            <tr><td>500 m</td><td>500 m</td><td id="t500">—</td><td id="n500">—</td></tr>
-            <tr>
-              <td><b>MAX SPEED</b></td>
-              <td id="maxAt"><b>—</b></td>
-              <td>—</td>
-              <td id="maxSpeed"><b>—</b></td>
-            </tr>
+            <tr><td>60 ft</td><td id="t60">—</td><td id="n60">—</td></tr>
+            <tr><td>201 m</td><td id="t201">—</td><td id="n201">—</td></tr>
+            <tr><td>402 m</td><td id="t402">—</td><td id="n402">—</td></tr>
+            <tr><td>MAX</td><td id="maxAt">—</td><td id="maxSpeed">—</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- VIEW HISTORY -->
     <div id="viewHistory" class="hide">
-      <div class="card">
-        <div class="row" style="justify-content:space-between;">
-          <h1 style="margin:0;">History</h1>
-          <div class="row">
-            <button id="btnClearAll" class="danger">Hapus Semua</button>
-          </div>
-        </div>
-      </div>
+      <div class="card"><h1>History</h1><button id="btnClearAll" class="danger">Hapus</button></div>
       <div id="historyList"></div>
-      <div id="historyEmpty" class="card small">Belum ada data tersimpan.</div>
     </div>
   </div>
 
 <script>
 (() => {
-  // SETTINGS
-  const V_START_KMH = 3;  // Turunkan sedikit agar lebih sensitif
-  const D_MIN_METERS = 2; 
-  const MAX_ACC_METERS = 15;
-  const HISTORY_KEY = "racebox_v2_storage";
+  // --- CONFIG ---
+  const V_TRIGGER = 5;      // Mulai otomatis saat 5 km/j
+  const MAX_ACC = 15;       // Akurasi GPS maksimal
+  const STORAGE_KEY = "racebox_data_v3";
 
   const TARGETS = [
-    { key: "60", meters: 18.288 },
-    { key: "201", meters: 201 },
-    { key: "402", meters: 402 },
-    { key: "500", meters: 500 }
+    { key: "60", m: 18.288 },
+    { key: "201", m: 201 },
+    { key: "402", m: 402 }
   ];
 
-  // UI ELEMENTS
+  // --- STATE ---
+  let state = "idle", watchId = null, armFix = null, prevFix = null;
+  let totalDist = 0, startPerf = null, hit = new Map(), maxV = 0, maxAt = 0;
+
   const el = (id) => document.getElementById(id);
-  const btns = { arm: el("btnArm"), stop: el("btnStop"), reset: el("btnReset") };
-  const views = { run: el("viewRun"), history: el("viewHistory") };
-  const tabs = { run: el("tabRun"), history: el("tabHistory") };
 
-  // APP STATE
-  let state = "idle";
-  let watchId = null;
-  let armFix = null;
-  let prevFix = null;
-  let totalDist = 0;
-  let startPerf = null;
-  let hit = new Map();
-  let maxSpeedKmh = 0;
-  let maxSpeedAtM = 0;
-
-  // HELPERS
-  function setUIState(s) {
+  function updateUI(s) {
     state = s;
     el("stateText").textContent = s;
     el("status").textContent = s;
-    btns.arm.disabled = !["idle", "finished", "stopped"].includes(s);
-    btns.stop.disabled = (s === "idle");
+    el("btnArm").disabled = !["idle", "finished", "stopped"].includes(s);
+    el("btnStop").disabled = (s === "idle");
   }
 
   function setHint(msg, cls="") {
-    const h = el("hint");
-    h.textContent = msg;
-    h.className = "small " + cls;
+    el("hint").textContent = msg;
+    el("hint").className = "small " + cls;
   }
 
-  function fmtTime(ms) { return (ms/1000).toFixed(3) + " s"; }
-
-  // LOGIC
-  function haversine(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const toRad = (d) => d * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  function haversine(l1, o1, l2, o2) {
+    const R = 6371000, r = (d) => d * Math.PI / 180;
+    const dL = r(l2-l1), dO = r(o2-o1);
+    const a = Math.sin(dL/2)**2 + Math.cos(r(l1)) * Math.cos(r(l2)) * Math.sin(dO/2)**2;
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  function resetDisplay() {
-    el("speed").textContent = "—";
-    el("distance").textContent = "0.0";
-    el("accuracy").textContent = "—";
-    el("maxSpeed").textContent = "—";
-    el("maxAt").textContent = "—";
-    TARGETS.forEach(t => {
-      el("t"+t.key).textContent = "—";
-      el("n"+t.key).textContent = "—";
-    });
-  }
-
   function onPosition(pos) {
-    const { latitude, longitude, accuracy, speed } = pos.coords;
-    const spKmh = (speed || 0) * 3.6;
-    const perfNow = performance.now();
+    const { latitude: lat, longitude: lon, accuracy: acc, speed } = pos.coords;
+    const v = (speed || 0) * 3.6;
+    const now = performance.now();
 
-    el("accuracy").textContent = accuracy.toFixed(1);
-    el("speed").textContent = spKmh.toFixed(1);
+    el("accuracy").textContent = acc.toFixed(1);
+    el("speed").textContent = v.toFixed(1);
 
-    if (accuracy > MAX_ACC_METERS) return;
+    if (acc > MAX_ACC) return;
 
-    const fix = { lat: latitude, lon: longitude, perfNow };
-
-    // 1. MENGUNCI TITIK START (ARMED)
+    // ARMED: Lock start point
     if (state === "armed" && !armFix) {
-      armFix = fix;
-      prevFix = fix;
-      setHint("READY! Gas sekarang untuk mulai.", "ok");
+      armFix = { lat, lon, now };
+      prevFix = armFix;
+      setHint("READY! Begitu kecepatan ≥ 5 km/j, timer jalan.", "ok");
       return;
     }
 
-    // 2. DETEKSI PERGERAKAN (AUTO START / TRIGGER C)
+    // TRIGGER CHECK (Kecepatan >= 5 km/j)
     if (state === "armed" && armFix) {
-      const dFromArm = haversine(armFix.lat, armFix.lon, fix.lat, fix.lon);
-      
-      if (spKmh >= V_START_KMH || dFromArm >= D_MIN_METERS) {
-        state = "running";
-        setUIState("running");
-        startPerf = perfNow;
+      if (v >= V_TRIGGER) {
+        updateUI("running");
+        startPerf = now;
         totalDist = 0;
+        maxV = 0;
         hit.clear();
-        setHint("RUNNING...", "ok");
+        prevFix = { lat, lon, now };
+        setHint("GO GO GO!", "ok");
       }
-      prevFix = fix;
       return;
     }
 
-    // 3. SEDANG JALAN (RUNNING)
+    // RUNNING
     if (state === "running") {
-      const d = haversine(prevFix.lat, prevFix.lon, fix.lat, fix.lon);
+      const d = haversine(prevFix.lat, prevFix.lon, lat, lon);
       totalDist += d;
       el("distance").textContent = totalDist.toFixed(1);
 
-      if (spKmh > maxSpeedKmh) {
-        maxSpeedKmh = spKmh;
-        maxSpeedAtM = totalDist;
-        el("maxSpeed").textContent = maxSpeedKmh.toFixed(1);
-        el("maxAt").textContent = maxSpeedAtM.toFixed(1) + " m";
+      if (v > maxV) {
+        maxV = v; maxAt = totalDist;
+        el("maxSpeed").textContent = maxV.toFixed(1) + " km/j";
+        el("maxAt").textContent = maxAt.toFixed(1) + " m";
       }
 
       TARGETS.forEach(t => {
-        if (!hit.has(t.key) && totalDist >= t.meters) {
-          const timeMs = perfNow - startPerf;
-          hit.set(t.key, timeMs);
-          el("t"+t.key).textContent = fmtTime(timeMs);
-          el("n"+t.key).textContent = spKmh.toFixed(1);
+        if (!hit.has(t.key) && totalDist >= t.m) {
+          const time = (now - startPerf) / 1000;
+          hit.set(t.key, time);
+          el("t" + t.key).textContent = time.toFixed(3) + " s";
+          el("n" + t.key).textContent = v.toFixed(1) + " km/j";
         }
       });
 
-      if (totalDist >= 500) finishRun(true);
-      prevFix = fix;
+      if (totalDist >= 402.1) finish(true);
+      prevFix = { lat, lon, now };
     }
   }
 
-  function finishRun(success) {
+  function finish(ok) {
     if (watchId) navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-    setUIState(success ? "finished" : "stopped");
-    setHint(success ? "Selesai! Data disimpan." : "Berhenti.", success ? "ok" : "warn");
-
-    if (success && hit.size > 0) {
-      const runData = {
-        id: Date.now(),
-        date: new Date().toLocaleString(),
-        maxV: maxSpeedKmh.toFixed(1),
-        maxD: totalDist.toFixed(1),
-        splits: Object.fromEntries(hit)
-      };
-      const logs = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      logs.unshift(runData);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(logs.slice(0, 50)));
+    updateUI(ok ? "finished" : "stopped");
+    setHint(ok ? "Selesai!" : "Batal.", ok ? "ok" : "warn");
+    if (ok) {
+      const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      logs.unshift({ date: new Date().toLocaleString(), v: maxV.toFixed(1), d: totalDist.toFixed(1) });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs.slice(0, 20)));
     }
   }
 
-  // BUTTON ACTIONS
-  btns.arm.onclick = () => {
-    if (!navigator.geolocation) return alert("GPS tidak didukung!");
-    resetDisplay();
-    maxSpeedKmh = 0;
+  el("btnArm").onclick = () => {
+    updateUI("armed");
+    setHint("Mencari GPS...", "warn");
     armFix = null;
-    setUIState("armed");
-    setHint("Mencari GPS fix...", "warn");
-    watchId = navigator.geolocation.watchPosition(onPosition, (err) => {
-      setHint("GPS Error: " + err.message, "bad");
-    }, { enableHighAccuracy: true });
+    watchId = navigator.geolocation.watchPosition(onPosition, (e) => setHint("Error: " + e.message, "bad"), { enableHighAccuracy: true });
   };
 
-  btns.stop.onclick = () => finishRun(false);
+  el("btnStop").onclick = () => finish(false);
+  el("btnReset").onclick = () => { finish(false); el("distance").textContent = "0.0"; updateUI("idle"); };
   
-  btns.reset.onclick = () => {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-    resetDisplay();
-    setUIState("idle");
-    setHint("Ready.");
+  el("tabHistory").onclick = () => {
+    el("viewRun").classList.add("hide"); el("viewHistory").classList.remove("hide");
+    el("tabHistory").classList.add("active"); el("tabRun").classList.remove("active");
+    const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    el("historyList").innerHTML = logs.map(l => `<div class="card"><small>${l.date}</small><br><b>${l.v} km/j</b> - ${l.d}m</div>`).join("");
   };
 
-  // TABS
-  tabs.run.onclick = () => {
-    views.run.classList.remove("hide");
-    views.history.classList.add("hide");
-    tabs.run.classList.add("active");
-    tabs.history.classList.remove("active");
+  el("tabRun").onclick = () => {
+    el("viewRun").classList.remove("hide"); el("viewHistory").classList.add("hide");
+    el("tabRun").classList.add("active"); el("tabHistory").classList.remove("active");
   };
 
-  tabs.history.onclick = () => {
-    views.run.classList.add("hide");
-    views.history.classList.remove("hide");
-    tabs.history.classList.add("active");
-    tabs.run.classList.remove("active");
-    renderHistory();
-  };
-
-  function renderHistory() {
-    const logs = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    const list = el("historyList");
-    el("historyEmpty").classList.toggle("hide", logs.length > 0);
-    list.innerHTML = "";
-    logs.forEach(log => {
-      const div = document.createElement("div");
-      div.className = "historyItem";
-      div.innerHTML = `
-        <div class="historyTop">
-          <div>
-            <strong>${log.date}</strong><br>
-            <small>Max: ${log.maxV} km/j @ ${log.maxD}m</small>
-          </div>
-        </div>
-      `;
-      list.appendChild(div);
-    });
-  }
-
-  el("btnClearAll").onclick = () => {
-    if(confirm("Hapus semua?")) {
-      localStorage.removeItem(HISTORY_KEY);
-      renderHistory();
-    }
-  };
+  el("btnClearAll").onclick = () => { localStorage.removeItem(STORAGE_KEY); el("historyList").innerHTML = ""; };
 
 })();
 </script>
